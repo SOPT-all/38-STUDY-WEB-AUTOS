@@ -64,9 +64,10 @@ DevOps · Automation · AI · Collaboration
 ---
 
 ## 🌿 Branch Strategy
-
+> 작업 브랜치에서 구현 후 test에서 검증하고, 테스트 성공 후 main에 반영합니다.
 ```mermaid
 graph LR
 A[auto/작업명-담당자] --> B[test]
 B --> C[main]
 ```
+
