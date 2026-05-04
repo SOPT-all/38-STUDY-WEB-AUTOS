@@ -1,0 +1,86 @@
+name: Automated Discord Notification
+
+on:
+  pull_request:
+    types: [opened, reopened]
+  issues:
+    types: [opened]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send Detailed Discord Message
+        shell: bash
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            TITLE="[PR] ${{ github.event.pull_request.title }}"
+            URL="${{ github.event.pull_request.html_url }}"
+            DESC="$PR_BODY"
+            AUTHOR="${{ github.event.pull_request.user.login }}"
+            COLOR=3066993
+          else
+            TITLE="[Issue] ${{ github.event.issue.title }}"
+            URL="${{ github.event.issue.html_url }}"
+            DESC="$ISSUE_BODY"
+            AUTHOR="${{ github.event.issue.user.login }}"
+            COLOR=15158332
+          fi
+
+          CLEAN_DESC=$(echo "$DESC" | head -c 200)
+
+          jq -n \
+            --arg title "$TITLE" \
+            --arg url "$URL" \
+            --arg desc "$CLEAN_DESC..." \
+            --arg author "$AUTHOR" \
+            --arg repo "${{ github.repository }}" \
+            --arg event "${{ github.event_name }}" \
+            --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --argjson color "$COLOR" \
+            '{
+              embeds: [
+                {
+                  title: $title,
+                  url: $url,
+                  description: $desc,
+                  color: $color,
+
+                  author: {
+                    name: $author,
+                    icon_url: ("https://github.com/" + $author + ".png")
+                  },
+
+                  fields: [
+                    {
+                      name: "Repository",
+                      value: $repo,
+                      inline: true
+                    },
+                    {
+                      name: "Event",
+                      value: $event,
+                      inline: true
+                    }
+                  ],
+
+                  footer: {
+                    text: "GitHub Actions Automation"
+                  },
+
+                  timestamp: $timestamp
+                }
+              ]
+            }' > payload.json
+
+          curl \
+            -H "Content-Type: application/json" \
+            -X POST \
+            -d @payload.json \
+            "$DISCORD_WEBHOOK_URL"
