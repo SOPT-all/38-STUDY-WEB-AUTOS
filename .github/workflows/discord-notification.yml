@@ -1,0 +1,167 @@
+name: Automated Discord Notification
+
+on:
+  pull_request:
+    types: [opened, reopened, review_requested, closed]
+
+  pull_request_review:
+    types: [submitted]
+
+  issues:
+    types: [opened]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send Detailed Discord Message
+        shell: bash
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+
+        run: |
+          EVENT_NAME="${{ github.event_name }}"
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            TITLE="[PR] ${{ github.event.pull_request.title }}"
+            URL="${{ github.event.pull_request.html_url }}"
+            DESC="$PR_BODY"
+            AUTHOR="${{ github.event.pull_request.user.login }}"
+            COLOR=3066993
+
+            REQUESTED_REVIEWERS=$(jq -r '
+              [.pull_request.requested_reviewers[].login]
+              | if length > 0 then join(", ") else "없음" end
+            ' "$GITHUB_EVENT_PATH")
+
+            FIELDS=$(jq -n \
+              --arg repo "${{ github.repository }}" \
+              --arg event "${{ github.event.action }}" \
+              --arg reviewers "$REQUESTED_REVIEWERS" \
+              '[
+                {
+                  name: "Repository",
+                  value: $repo,
+                  inline: true
+                },
+                {
+                  name: "Event",
+                  value: $event,
+                  inline: true
+                },
+                {
+                  name: "Requested Reviewers",
+                  value: $reviewers,
+                  inline: false
+                }
+              ]')
+
+          elif [ "$EVENT_NAME" = "pull_request_review" ]; then
+            REVIEW_STATE="${{ github.event.review.state }}"
+
+            TITLE="[PR Review] ${{ github.event.pull_request.title }}"
+            URL="${{ github.event.pull_request.html_url }}"
+            DESC="${{ github.event.review.body }}"
+            AUTHOR="${{ github.event.review.user.login }}"
+
+            case "$REVIEW_STATE" in
+              approved)
+                COLOR=5763719
+                REVIEW_LABEL="APPROVED"
+                ;;
+              changes_requested)
+                COLOR=15158332
+                REVIEW_LABEL="CHANGES REQUESTED"
+                ;;
+              commented)
+                COLOR=3447003
+                REVIEW_LABEL="COMMENTED"
+                ;;
+              *)
+                COLOR=9807270
+                REVIEW_LABEL=$(echo "$REVIEW_STATE" | tr '[:lower:]' '[:upper:]')
+                ;;
+            esac
+
+            FIELDS=$(jq -n \
+              --arg repo "${{ github.repository }}" \
+              --arg reviewState "$REVIEW_LABEL" \
+              '[
+                {
+                  name: "Repository",
+                  value: $repo,
+                  inline: true
+                },
+                {
+                  name: "Review Status",
+                  value: $reviewState,
+                  inline: true
+                }
+              ]')
+
+          else
+            TITLE="[Issue] ${{ github.event.issue.title }}"
+            URL="${{ github.event.issue.html_url }}"
+            DESC="$ISSUE_BODY"
+            AUTHOR="${{ github.event.issue.user.login }}"
+            COLOR=15158332
+
+            FIELDS=$(jq -n \
+              --arg repo "${{ github.repository }}" \
+              --arg event "${{ github.event.action }}" \
+              '[
+                {
+                  name: "Repository",
+                  value: $repo,
+                  inline: true
+                },
+                {
+                  name: "Event",
+                  value: $event,
+                  inline: true
+                }
+              ]')
+          fi
+
+          CLEAN_DESC=$(echo "$DESC" | head -c 200)
+
+          jq -n \
+            --arg title "$TITLE" \
+            --arg url "$URL" \
+            --arg desc "$CLEAN_DESC..." \
+            --arg author "$AUTHOR" \
+            --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --argjson color "$COLOR" \
+            --argjson fields "$FIELDS" \
+            '{
+              embeds: [
+                {
+                  title: $title,
+                  url: $url,
+                  description: $desc,
+                  color: $color,
+
+                  author: {
+                    name: $author,
+                    icon_url: ("https://github.com/" + $author + ".png")
+                  },
+
+                  fields: $fields,
+
+                  footer: {
+                    text: "GitHub Actions Automation"
+                  },
+
+                  timestamp: $timestamp
+                }
+              ]
+            }' > payload.json
+
+          curl \
+            -H "Content-Type: application/json" \
+            -X POST \
+            -d @payload.json \
+            "$DISCORD_WEBHOOK_URL"
