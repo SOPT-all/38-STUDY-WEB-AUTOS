@@ -12,8 +12,17 @@ jobs:
         with:
           script: |
             const base = context.payload.pull_request.base.ref
+            const author = context.payload.pull_request.user.login
+
+            await github.rest.issues.addAssignees({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              assignees: [author]
+            })
+
             if (base !== 'main') {
-              console.log('Not targeting main — skip')
+              console.log('Not targeting main — skip reviewer')
               return
             }
 
@@ -27,7 +36,6 @@ jobs:
               'jin-evergreen'
             ]
 
-            const author = context.payload.pull_request.user.login
             const candidates = reviewers.filter(r => r !== author)
             const picked = candidates.sort(() => Math.random() - 0.5).slice(0, 1)
 
@@ -36,11 +44,4 @@ jobs:
               repo: context.repo.repo,
               pull_number: context.payload.pull_request.number,
               reviewers: picked
-            })
-
-            await github.rest.issues.addAssignees({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              assignees: [author]
             })
