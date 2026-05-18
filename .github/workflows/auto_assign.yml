@@ -27,11 +27,10 @@ jobs:
               'jin-evergreen'
             ]
 
-            // PR 작성자 제외
             const author = context.payload.pull_request.user.login
             const candidates = reviewers.filter(r => r !== author)
+            const picked = candidates.sort(() => Math.random() - 0.5).slice(0, 1)
 
-            // 리뷰어 배정
             await github.rest.pulls.requestReviewers({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -39,7 +38,6 @@ jobs:
               reviewers: picked
             })
 
-            // 어사이니 = PR 작성자 본인
             await github.rest.issues.addAssignees({
               owner: context.repo.owner,
               repo: context.repo.repo,
