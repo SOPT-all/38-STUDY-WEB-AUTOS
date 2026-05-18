@@ -40,11 +40,10 @@ jobs:
             ]
 
             const candidates = reviewers.filter(r => r !== author)
-            const picked = candidates.sort(() => Math.random() - 0.5).slice(0, 1)
 
             await github.rest.pulls.requestReviewers({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: context.payload.pull_request.number,
-              reviewers: picked
+              reviewers: candidates
             })
