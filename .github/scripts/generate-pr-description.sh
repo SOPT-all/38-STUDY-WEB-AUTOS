@@ -13,11 +13,10 @@ fi
 git fetch origin "$TARGET_BRANCH" --depth=1
 git fetch origin "$SOURCE_BRANCH" --depth=1
 
-# 공통 조상 이후의 변경만 PR 분석 대상으로 사용합니다.
-MERGE_BASE=$(git merge-base "origin/$TARGET_BRANCH" "origin/$SOURCE_BRANCH")
-COMMITS=$(git log --no-merges "$MERGE_BASE..origin/$SOURCE_BRANCH" --oneline)
-DIFF_STATS=$(git diff --stat "$MERGE_BASE..origin/$SOURCE_BRANCH")
-DIFF_CONTENT=$(git diff --unified=3 "$MERGE_BASE..origin/$SOURCE_BRANCH" \
+MERGE_BASE=$(git merge-base "origin/$TARGET_BRANCH" HEAD)
+COMMITS=$(git log --no-merges "$MERGE_BASE..HEAD" --oneline)
+DIFF_STATS=$(git diff --stat "$MERGE_BASE..HEAD")
+DIFF_CONTENT=$(git diff --unified=3 "$MERGE_BASE..HEAD" \
   -- . \
   ':(exclude)package-lock.json' \
   ':(exclude)yarn.lock' \
