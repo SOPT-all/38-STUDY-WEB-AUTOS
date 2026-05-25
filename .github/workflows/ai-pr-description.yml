@@ -75,7 +75,9 @@ jobs:
               ? existingBody.split(startMarker)[0].trimEnd()
               : existingBody.trimEnd();
 
-            const manualBody = rawManualBody.replace(/\n\s*---\s*$/m, '').trimEnd();
+            const manualBody = rawManualBody
+              .replace(/(?:\n\s*---\s*)+$/g, '')
+              .trimEnd();
 
             const prompt = `
             당신은 GitHub Pull Request 하단에 붙는 AI 요약 블록을 작성하는 한국어 기술 문서 작성자입니다.
@@ -149,7 +151,7 @@ jobs:
             ${endMarker}`;
 
             const nextBody = manualBody
-              ? `${manualBody}\n\n\n${aiSection}`
+              ? `${manualBody}\n\n---\n\n${aiSection}`
               : aiSection;
 
             await github.rest.pulls.update({
