@@ -79,23 +79,22 @@ jobs:
           SOURCE_BRANCH: ${{ github.ref_name }}
         run: |
           {
-            echo "## PR Draft"
+            echo "## PR Draft Suggestion"
             echo
             if [ "${{ steps.create-pr.outcome }}" = "success" ]; then
-              echo "- Status: PR created successfully"
+              echo "- Status: PR created successfully."
             else
-              echo "- Status: PR creation failed. Use the generated draft below."
+              echo "- Status: Automatic PR creation failed. Use the draft below to open the PR manually."
               echo "- Reason: GitHub Actions may not have permission to create pull requests in this repository."
             fi
             echo "- Base branch: ${TARGET_BRANCH}"
             echo "- Head branch: ${SOURCE_BRANCH}"
-            echo "- Compare URL: https://github.com/${{ github.repository }}/compare/${TARGET_BRANCH}...${SOURCE_BRANCH}?expand=1"
             echo
             echo "### Suggested Title"
             echo
             cat "${{ steps.generate-pr.outputs.title_file }}"
             echo
-            echo "### Suggested Body"
+            echo "### Suggested Draft Body"
             echo
             echo '```md'
             cat "${{ steps.generate-pr.outputs.body_file }}"

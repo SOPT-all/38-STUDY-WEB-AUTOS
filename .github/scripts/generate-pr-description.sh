@@ -34,14 +34,12 @@ if [ -z "$DIFF_CONTENT" ]; then
   exit 0
 fi
 
-PR_TEMPLATE=$(cat .github/PULL_REQUEST_TEMPLATE.md)
-
 PROMPT=$(cat <<EOF
-당신은 GitHub Pull Request 제목과 AI 요약 블록을 작성하는 한국어 기술 문서 작성자입니다.
+당신은 GitHub Pull Request 제목과 본문 초안을 작성하는 한국어 기술 문서 작성자입니다.
 
 목표:
-- feature 브랜치에서 test 브랜치로 보내는 PR의 제목과 설명을 생성합니다.
-- 사람이 수정할 수 있도록 기본 PR 템플릿은 유지하고, AI가 생성한 내용은 별도 블록으로 구분합니다.
+- feature 브랜치에서 test 브랜치로 보내는 PR의 제목과 본문 초안을 생성합니다.
+- 저장소 PR 템플릿의 섹션 구조를 유지한 상태로 각 항목을 초안 형태로 채웁니다.
 
 제목 규칙:
 - 반드시 한국어로 작성합니다.
@@ -49,31 +47,35 @@ PROMPT=$(cat <<EOF
 - type은 feat, fix, refactor, chore, docs, test, ci 중 하나만 사용합니다.
 - 60자 이내를 권장합니다.
 
-요약 규칙:
+본문 규칙:
 - 반드시 한국어 마크다운으로 작성합니다.
 - 변경 사항은 커밋 목록, 변경 파일 통계, 상세 diff에 근거해 작성합니다.
-- 확실하지 않은 내용은 추측하지 말고 "확인 필요"라고 적습니다.
+- 아래 템플릿의 헤더 구조를 그대로 유지합니다.
+- 확실하지 않은 내용은 추측하지 말고 "확인 필요" 또는 "직접 보완 필요"라고 적습니다.
 - 테스트를 실제로 실행했다고 추정하지 않습니다.
 - 각 섹션은 1~3개의 bullet로 짧고 선명하게 작성합니다.
-- 아래 형식을 정확히 따릅니다.
+- HTML 주석은 제거하고 실제 초안 문장을 작성합니다.
 
 출력 형식:
 TITLE: [feat] 예시 제목
 ---
-## 🤖 AI PR 분석 결과
-_아래 내용은 변경 diff를 기준으로 자동 생성되었습니다._
-
-### 📝 Summary
+## 👀 Summary
 - ...
-### ⚒️ 상세 변경 사항
-- ...
-### 🔍 리뷰어 주의사항
-- ...
-
-PR 템플릿:
 ---
-$PR_TEMPLATE
+## 🚨 해결하고 싶은 문제
+- ...
 ---
+## 💻 구현 방식
+- ...
+---
+## 🐾 테스트
+- ...
+---
+## 🤬 어려웠던 점
+- ...
+---
+## 📚 참고 자료
+- ...
 
 PR 정보:
 - base branch: $TARGET_BRANCH
@@ -118,23 +120,15 @@ if [ -z "$FULL_RESPONSE" ] || [ "$FULL_RESPONSE" = "null" ]; then
 fi
 
 PR_TITLE=$(printf '%s\n' "$FULL_RESPONSE" | grep '^TITLE:' | sed 's/^TITLE: //')
-PR_SUMMARY=$(printf '%s\n' "$FULL_RESPONSE" | sed '1,/^---$/d')
+PR_BODY_DRAFT=$(printf '%s\n' "$FULL_RESPONSE" | sed '1,/^---$/d')
 
-if [ -z "$PR_TITLE" ] || [ -z "$PR_SUMMARY" ]; then
+if [ -z "$PR_TITLE" ] || [ -z "$PR_BODY_DRAFT" ]; then
   echo "Failed to parse Gemini response." >&2
   exit 1
 fi
 
 PR_BODY=$(cat <<EOF
-$PR_TEMPLATE
-
----
-
-<!-- ai-pr-summary:start -->
-
-$PR_SUMMARY
-
-<!-- ai-pr-summary:end -->
+$PR_BODY_DRAFT
 EOF
 )
 
