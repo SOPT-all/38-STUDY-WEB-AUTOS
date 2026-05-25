@@ -11,13 +11,13 @@ if [ -z "${GEMINI_API_KEY:-}" ]; then
 fi
 
 git fetch origin "$TARGET_BRANCH" --depth=1
-git fetch origin "$SOURCE_BRANCH" --depth=1
 
+# push 이벤트에서 현재 checkout은 이미 source branch HEAD이므로 별도 remote ref 없이 HEAD를 사용합니다.
 # 공통 조상 이후의 변경만 PR 분석 대상으로 사용합니다.
-MERGE_BASE=$(git merge-base "origin/$TARGET_BRANCH" "origin/$SOURCE_BRANCH")
-COMMITS=$(git log --no-merges "$MERGE_BASE..origin/$SOURCE_BRANCH" --oneline)
-DIFF_STATS=$(git diff --stat "$MERGE_BASE..origin/$SOURCE_BRANCH")
-DIFF_CONTENT=$(git diff --unified=3 "$MERGE_BASE..origin/$SOURCE_BRANCH" \
+MERGE_BASE=$(git merge-base "origin/$TARGET_BRANCH" HEAD)
+COMMITS=$(git log --no-merges "$MERGE_BASE..HEAD" --oneline)
+DIFF_STATS=$(git diff --stat "$MERGE_BASE..HEAD")
+DIFF_CONTENT=$(git diff --unified=3 "$MERGE_BASE..HEAD" \
   -- . \
   ':(exclude)package-lock.json' \
   ':(exclude)yarn.lock' \
@@ -63,6 +63,8 @@ PROMPT=$(cat <<EOF
 TITLE: [feat] 예시 제목
 ---
 ## 🤖 AI PR 분석 결과
+_아래 내용은 변경 diff를 기준으로 자동 생성되었습니다._
+
 ### 📝 Summary
 - ...
 ### ⚒️ 상세 변경 사항
