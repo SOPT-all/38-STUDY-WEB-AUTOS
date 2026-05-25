@@ -3,7 +3,8 @@ name: AI PR Summary
 on:
   pull_request:
     branches:
-      - test, main
+      - test
+      - main
     types:
       - opened
       - reopened
