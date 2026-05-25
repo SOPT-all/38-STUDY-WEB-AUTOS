@@ -11,7 +11,6 @@ if [ -z "${GEMINI_API_KEY:-}" ]; then
 fi
 
 git fetch origin "$TARGET_BRANCH" --depth=1
-git fetch origin "$SOURCE_BRANCH" --depth=1
 
 MERGE_BASE=$(git merge-base "origin/$TARGET_BRANCH" HEAD)
 COMMITS=$(git log --no-merges "$MERGE_BASE..HEAD" --oneline)
@@ -62,6 +61,8 @@ PROMPT=$(cat <<EOF
 TITLE: [feat] 예시 제목
 ---
 ## 🤖 AI PR 분석 결과
+_아래 내용은 변경 diff를 기준으로 자동 생성되었습니다._
+
 ### 📝 Summary
 - ...
 ### ⚒️ 상세 변경 사항
