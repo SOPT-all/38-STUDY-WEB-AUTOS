@@ -113,23 +113,39 @@ jobs:
             ---
             `;
 
-            const response = await fetch(
+            const endpoint =
               'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' +
-                encodeURIComponent(process.env.GEMINI_API_KEY),
-              {
+              encodeURIComponent(process.env.GEMINI_API_KEY);
+            const payload = {
+              contents: [{ role: 'user', parts: [{ text: prompt }] }],
+              generationConfig: { temperature: 0.2 },
+            };
+
+            let response;
+            let lastErrorText = '';
+
+            for (let attempt = 1; attempt <= 3; attempt += 1) {
+              response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                  generationConfig: { temperature: 0.2 },
-                }),
-              },
-            );
+                body: JSON.stringify(payload),
+              });
 
-            if (!response.ok) {
-              const errorText = await response.text();
-              core.setFailed(`Gemini API request failed: ${response.status} ${errorText}`);
-              return;
+              if (response.ok) {
+                break;
+              }
+
+              lastErrorText = await response.text();
+              const shouldRetry = response.status === 429 || response.status >= 500;
+
+              if (!shouldRetry || attempt === 3) {
+                core.setFailed(
+                  `Gemini API request failed after ${attempt} attempt(s): ${response.status} ${lastErrorText}`,
+                );
+                return;
+              }
+
+              await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
             }
 
             const data = await response.json();

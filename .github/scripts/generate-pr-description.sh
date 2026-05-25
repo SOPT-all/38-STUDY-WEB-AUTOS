@@ -83,20 +83,40 @@ $DIFF_CONTENT
 EOF
 )
 
-GEMINI_RESPONSE=$(curl -sS -X POST \
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}" \
-  -H 'Content-Type: application/json' \
-  -d "$(jq -n --arg prompt "$PROMPT" '{
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: $prompt }]
-      }
-    ],
-    generationConfig: {
-      temperature: 0.2
+REQUEST_BODY=$(jq -n --arg prompt "$PROMPT" '{
+  contents: [
+    {
+      role: "user",
+      parts: [{ text: $prompt }]
     }
-  }')")
+  ],
+  generationConfig: {
+    temperature: 0.2
+  }
+}')
+
+GEMINI_RESPONSE=""
+for attempt in 1 2 3; do
+  HTTP_RESPONSE=$(curl -sS -w '\n%{http_code}' -X POST \
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}" \
+    -H 'Content-Type: application/json' \
+    -d "$REQUEST_BODY")
+
+  HTTP_STATUS=$(printf '%s' "$HTTP_RESPONSE" | tail -n 1)
+  GEMINI_RESPONSE=$(printf '%s' "$HTTP_RESPONSE" | sed '$d')
+
+  if [ "$HTTP_STATUS" = "200" ]; then
+    break
+  fi
+
+  if [ "$attempt" -eq 3 ] || { [ "$HTTP_STATUS" != "429" ] && [ "${HTTP_STATUS#5}" = "$HTTP_STATUS" ]; }; then
+    echo "Gemini API request failed with status $HTTP_STATUS" >&2
+    echo "$GEMINI_RESPONSE" >&2
+    exit 1
+  fi
+
+  sleep $((attempt * 2))
+done
 
 FULL_RESPONSE=$(printf '%s' "$GEMINI_RESPONSE" | jq -r '
   .candidates[0].content.parts
