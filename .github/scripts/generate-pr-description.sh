@@ -10,7 +10,7 @@ if [ -z "${GEMINI_API_KEY:-}" ]; then
   exit 1
 fi
 
-git fetch origin "$TARGET_BRANCH" --depth=1
+git fetch origin "$TARGET_BRANCH:refs/remotes/origin/$TARGET_BRANCH" --depth=1
 
 MERGE_BASE=$(git merge-base "origin/$TARGET_BRANCH" HEAD)
 COMMITS=$(git log --no-merges "$MERGE_BASE..HEAD" --oneline)
@@ -130,7 +130,7 @@ if [ -z "$FULL_RESPONSE" ] || [ "$FULL_RESPONSE" = "null" ]; then
   exit 1
 fi
 
-PR_TITLE=$(printf '%s\n' "$FULL_RESPONSE" | grep '^TITLE:' | sed 's/^TITLE: //')
+PR_TITLE=$(printf '%s\n' "$FULL_RESPONSE" | sed -n 's/^TITLE:[[:space:]]*//p' | head -n 1)
 PR_BODY_DRAFT=$(printf '%s\n' "$FULL_RESPONSE" | sed '1,/^---$/d')
 
 if [ -z "$PR_TITLE" ] || [ -z "$PR_BODY_DRAFT" ]; then
@@ -138,10 +138,8 @@ if [ -z "$PR_TITLE" ] || [ -z "$PR_BODY_DRAFT" ]; then
   exit 1
 fi
 
-PR_BODY=$(cat <<EOF
-$PR_BODY_DRAFT
-EOF
-)
+PR_BODY="$PR_BODY_DRAFT"
+
 
 TITLE_FILE=$(mktemp)
 BODY_FILE=$(mktemp)
