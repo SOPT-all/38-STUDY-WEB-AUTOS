@@ -147,7 +147,7 @@ jobs:
             ${endMarker}`;
 
             const nextBody = manualBody
-              ? `${manualBody}\n\n---\n\n${aiSection}`
+              ? `${manualBody}\n\n\n${aiSection}`
               : aiSection;
 
             await github.rest.pulls.update({
