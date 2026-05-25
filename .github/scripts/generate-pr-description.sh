@@ -34,6 +34,8 @@ if [ -z "$DIFF_CONTENT" ]; then
   exit 0
 fi
 
+PR_TEMPLATE=$(cat .github/PULL_REQUEST_TEMPLATE.md)
+
 PROMPT=$(cat <<EOF
 당신은 GitHub Pull Request 제목과 본문 초안을 작성하는 한국어 기술 문서 작성자입니다.
 
@@ -50,7 +52,7 @@ PROMPT=$(cat <<EOF
 본문 규칙:
 - 반드시 한국어 마크다운으로 작성합니다.
 - 변경 사항은 커밋 목록, 변경 파일 통계, 상세 diff에 근거해 작성합니다.
-- 아래 템플릿의 헤더 구조를 그대로 유지합니다.
+- 아래에 제공되는 PR 템플릿의 헤더 구조와 순서를 그대로 유지합니다.
 - 확실하지 않은 내용은 추측하지 말고 "확인 필요" 또는 "직접 보완 필요"라고 적습니다.
 - 테스트를 실제로 실행했다고 추정하지 않습니다.
 - 각 섹션은 1~3개의 bullet로 짧고 선명하게 작성합니다.
@@ -59,27 +61,16 @@ PROMPT=$(cat <<EOF
 출력 형식:
 TITLE: [feat] 예시 제목
 ---
-## 👀 Summary
-- ...
----
-## 🚨 해결하고 싶은 문제
-- ...
----
-## 💻 구현 방식
-- ...
----
-## 🐾 테스트
-- ...
----
-## 🤬 어려웠던 점
-- ...
----
-## 📚 참고 자료
-- ...
+아래 PR 템플릿 구조를 유지한 완성된 마크다운 본문
 
 PR 정보:
 - base branch: $TARGET_BRANCH
 - head branch: $SOURCE_BRANCH
+
+PR 템플릿:
+---
+$PR_TEMPLATE
+---
 
 커밋 목록:
 $COMMITS
