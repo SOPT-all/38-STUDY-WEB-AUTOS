@@ -60,6 +60,8 @@ jobs:
 
       - name: Create Pull Request
         if: steps.check-pr.outputs.exists == 'false' && steps.generate-pr.outputs.should_create == 'true'
+        continue-on-error: true
+        id: create-pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TZ: Asia/Seoul
@@ -68,8 +70,38 @@ jobs:
           gh pr create \
             --base "${TARGET_BRANCH}" \
             --head "$SOURCE_BRANCH" \
-            --title "${{ steps.generate-pr.outputs.title }}" \
-            --body "${{ steps.generate-pr.outputs.body }}"
+            --title "$(cat "${{ steps.generate-pr.outputs.title_file }}")" \
+            --body-file "${{ steps.generate-pr.outputs.body_file }}"
+
+      - name: Publish PR draft summary
+        if: steps.check-pr.outputs.exists == 'false' && steps.generate-pr.outputs.should_create == 'true'
+        env:
+          SOURCE_BRANCH: ${{ github.ref_name }}
+        run: |
+          {
+            echo "## PR Draft"
+            echo
+            if [ "${{ steps.create-pr.outcome }}" = "success" ]; then
+              echo "- Status: PR created successfully"
+            else
+              echo "- Status: PR creation failed. Use the generated draft below."
+              echo "- Reason: GitHub Actions may not have permission to create pull requests in this repository."
+            fi
+            echo "- Base branch: ${TARGET_BRANCH}"
+            echo "- Head branch: ${SOURCE_BRANCH}"
+            echo "- Compare URL: https://github.com/${{ github.repository }}/compare/${TARGET_BRANCH}...${SOURCE_BRANCH}?expand=1"
+            echo
+            echo "### Suggested Title"
+            echo
+            cat "${{ steps.generate-pr.outputs.title_file }}"
+            echo
+            echo "### Suggested Body"
+            echo
+            echo '```md'
+            cat "${{ steps.generate-pr.outputs.body_file }}"
+            echo
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Skip when diff is empty
         if: steps.check-pr.outputs.exists == 'false' && steps.generate-pr.outputs.should_create != 'true'

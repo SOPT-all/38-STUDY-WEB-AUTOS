@@ -138,10 +138,15 @@ $PR_SUMMARY
 EOF
 )
 
+TITLE_FILE=$(mktemp)
+BODY_FILE=$(mktemp)
+
+printf '%s' "$PR_TITLE" > "$TITLE_FILE"
+printf '%s' "$PR_BODY" > "$BODY_FILE"
+
 {
   echo "should_create=true"
   echo "title=$PR_TITLE"
-  echo "body<<EOF"
-  echo "$PR_BODY"
-  echo "EOF"
+  echo "title_file=$TITLE_FILE"
+  echo "body_file=$BODY_FILE"
 } >> "$GITHUB_OUTPUT"
