@@ -1,4 +1,4 @@
-name: create-pr
+name: Automated PR Creation
 
 on:
   push:
