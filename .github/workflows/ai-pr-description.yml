@@ -69,6 +69,11 @@ jobs:
             }
 
             const diff = fs.readFileSync(process.env.PR_DIFF_PATH, 'utf8');
+            const maxDiffChars = 120000;
+            const trimmedDiff =
+              diff.length > maxDiffChars
+                ? `${diff.slice(0, maxDiffChars)}\n\n[diff truncated due to size]`
+                : diff;
             const existingBody = context.payload.pull_request.body ?? '';
             const startMarker = '<!-- ai-pr-summary:start -->';
             const endMarker = '<!-- ai-pr-summary:end -->';
@@ -110,7 +115,7 @@ jobs:
 
             상세 diff:
             ---
-            ${diff}
+            ${trimmedDiff}
             ---
             `;
 

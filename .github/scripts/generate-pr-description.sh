@@ -5,6 +5,7 @@ set -euo pipefail
 TARGET_BRANCH="$1"
 SOURCE_BRANCH="$2"
 GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-flash}"
+MAX_DIFF_CHARS="${MAX_DIFF_CHARS:-120000}"
 TITLE_FILE=""
 BODY_FILE=""
 
@@ -38,6 +39,11 @@ DIFF_CONTENT=$(git diff --unified=3 "$MERGE_BASE..HEAD" \
   ':(exclude)pnpm-lock.yaml' \
   ':(exclude)dist/**' \
   ':(exclude).gitignore')
+
+if [ "${#DIFF_CONTENT}" -gt "$MAX_DIFF_CHARS" ]; then
+  DIFF_CONTENT="${DIFF_CONTENT:0:$MAX_DIFF_CHARS}
+[diff truncated due to size]"
+fi
 
 if [ -z "$DIFF_CONTENT" ]; then
   {
