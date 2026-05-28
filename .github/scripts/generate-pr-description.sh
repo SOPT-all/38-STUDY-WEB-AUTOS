@@ -14,7 +14,13 @@ git fetch origin "$TARGET_BRANCH:refs/remotes/origin/$TARGET_BRANCH" --depth=1
 
 MERGE_BASE=$(git merge-base "origin/$TARGET_BRANCH" HEAD)
 COMMITS=$(git log --no-merges "$MERGE_BASE..HEAD" --oneline)
-DIFF_STATS=$(git diff --stat "$MERGE_BASE..HEAD")
+DIFF_STATS=$(git diff --stat "$MERGE_BASE..HEAD" \
+  -- . \
+  ':(exclude)package-lock.json' \
+  ':(exclude)yarn.lock' \
+  ':(exclude)pnpm-lock.yaml' \
+  ':(exclude)dist/**' \
+  ':(exclude).gitignore')
 DIFF_CONTENT=$(git diff --unified=3 "$MERGE_BASE..HEAD" \
   -- . \
   ':(exclude)package-lock.json' \
