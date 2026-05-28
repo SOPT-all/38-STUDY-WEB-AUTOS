@@ -40,6 +40,11 @@ if [ -z "$DIFF_CONTENT" ]; then
   exit 0
 fi
 
+if [ ! -f .github/PULL_REQUEST_TEMPLATE.md ]; then
+  echo "PULL_REQUEST_TEMPLATE.md not found." >&2
+  exit 1
+fi
+
 PR_TEMPLATE=$(cat .github/PULL_REQUEST_TEMPLATE.md)
 
 PROMPT=$(cat <<EOF
