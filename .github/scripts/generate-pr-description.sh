@@ -4,6 +4,7 @@ set -euo pipefail
 
 TARGET_BRANCH="$1"
 SOURCE_BRANCH="$2"
+GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-flash}"
 
 if [ -z "${GEMINI_API_KEY:-}" ]; then
   echo "GEMINI_API_KEY is not configured." >&2
@@ -109,7 +110,7 @@ REQUEST_BODY=$(jq -n --arg prompt "$PROMPT" '{
 GEMINI_RESPONSE=""
 for attempt in 1 2 3; do
   HTTP_RESPONSE=$(curl -sS -w '\n%{http_code}' -X POST \
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}" \
+    "https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}" \
     -H 'Content-Type: application/json' \
     -d "$REQUEST_BODY")
 

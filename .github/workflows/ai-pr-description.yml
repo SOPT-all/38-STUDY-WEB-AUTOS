@@ -56,6 +56,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           GEMINI_API_KEY: ${{ secrets.PR_GEMINI_API_KEY }}
+          GEMINI_MODEL: gemini-2.5-flash
           PR_DIFF_PATH: pr.diff
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -113,8 +114,9 @@ jobs:
             ---
             `;
 
+            const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
             const endpoint =
-              'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' +
+              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=` +
               encodeURIComponent(process.env.GEMINI_API_KEY);
             const payload = {
               contents: [{ role: 'user', parts: [{ text: prompt }] }],
