@@ -5,6 +5,15 @@ set -euo pipefail
 TARGET_BRANCH="$1"
 SOURCE_BRANCH="$2"
 GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-flash}"
+TITLE_FILE=""
+BODY_FILE=""
+
+cleanup() {
+  [ -n "$TITLE_FILE" ] && [ -f "$TITLE_FILE" ] && rm -f "$TITLE_FILE"
+  [ -n "$BODY_FILE" ] && [ -f "$BODY_FILE" ] && rm -f "$BODY_FILE"
+}
+
+trap cleanup EXIT
 
 if [ -z "${GEMINI_API_KEY:-}" ]; then
   echo "GEMINI_API_KEY is not configured." >&2
