@@ -2,7 +2,7 @@ name: Remind Unreviewed PRs
 
 on:
   schedule:
-    - cron: '30 14 * * *'  # 평일 오전 11시 KST (UTC 02:00)
+    - cron: '5 15 * * *'  # 평일 오전 11시 KST (UTC 02:00)
   workflow_dispatch:        # 수동 실행도 가능
 
 jobs:
@@ -63,7 +63,7 @@ jobs:
               );
               // 멘션할 사람이 없으면 스킵 (모두 리뷰 완료)
               if (nonReviewers.length === 0) continue;
-              
+
               const mentions = nonReviewers
                 .map(member => `<@${DISCORD_MAP[member]}>`)
                 .join(' ');
