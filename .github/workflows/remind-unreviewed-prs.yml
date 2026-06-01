@@ -2,7 +2,7 @@ name: Remind Unreviewed PRs
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # 평일 오전 11시 KST (UTC 02:00)
+    - cron: '30 14 * * *'  # 평일 오전 11시 KST (UTC 02:00)
   workflow_dispatch:        # 수동 실행도 가능
 
 jobs:
