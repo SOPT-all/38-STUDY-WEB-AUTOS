@@ -52,13 +52,18 @@ jobs:
                 pull_number: pr.number,
               });
 
-              // 리뷰가 하나도 없는 경우만 수집
-              if (reviews.length > 0) continue;
-
               const author = pr.user.login;
 
-              // 본인 제외한 팀원 전체 → 멘션 대상
-              const nonReviewers = ALL_MEMBERS.filter(member => member !== author);
+              // 이미 리뷰한 사람 목록
+              const reviewedUsers = reviews.map(r => r.user.login);
+
+              // 본인 제외 + 이미 리뷰한 사람 제외 → 아직 리뷰 안 한 사람만 멘션
+              const nonReviewers = ALL_MEMBERS.filter(
+                member => member !== author && !reviewedUsers.includes(member)
+              );
+              // 멘션할 사람이 없으면 스킵 (모두 리뷰 완료)
+              if (nonReviewers.length === 0) continue;
+              
               const mentions = nonReviewers
                 .map(member => `<@${DISCORD_MAP[member]}>`)
                 .join(' ');
