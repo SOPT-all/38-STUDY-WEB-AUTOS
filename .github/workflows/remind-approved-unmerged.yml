@@ -16,7 +16,7 @@ jobs:
           DISCORD_USER_MAP: ${{ secrets.DISCORD_USER_MAP }}
         with:
           script: |
-            const STALE_HOURS = 24;
+            const STALE_HOURS = 0;
             const now = new Date();
 
             // GitHub 유저명 → Discord 유저 ID 매핑 (Secret에서 로드)
