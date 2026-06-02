@@ -19,17 +19,15 @@ jobs:
         shell: bash
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          PR_BODY: ${{ github.event.pull_request.body }}
-          ISSUE_BODY: ${{ github.event.issue.body }}
 
         run: |
           EVENT_NAME="${{ github.event_name }}"
 
           if [ "$EVENT_NAME" = "pull_request" ]; then
-            TITLE="[PR] ${{ github.event.pull_request.title }}"
-            URL="${{ github.event.pull_request.html_url }}"
-            DESC="$PR_BODY"
-            AUTHOR="${{ github.event.pull_request.user.login }}"
+            TITLE="[PR] $(jq -r '.pull_request.title // ""' "$GITHUB_EVENT_PATH")"
+            URL="$(jq -r '.pull_request.html_url // ""' "$GITHUB_EVENT_PATH")"
+            DESC="$(jq -r '.pull_request.body // ""' "$GITHUB_EVENT_PATH")"
+            AUTHOR="$(jq -r '.pull_request.user.login // ""' "$GITHUB_EVENT_PATH")"
             COLOR=3066993
 
             REQUESTED_REVIEWERS=$(jq -r '
@@ -60,12 +58,12 @@ jobs:
               ]')
 
           elif [ "$EVENT_NAME" = "pull_request_review" ]; then
-            REVIEW_STATE="${{ github.event.review.state }}"
+            REVIEW_STATE="$(jq -r '.review.state // ""' "$GITHUB_EVENT_PATH")"
 
-            TITLE="[PR Review] ${{ github.event.pull_request.title }}"
-            URL="${{ github.event.pull_request.html_url }}"
-            DESC="${{ github.event.review.body }}"
-            AUTHOR="${{ github.event.review.user.login }}"
+            TITLE="[PR Review] $(jq -r '.pull_request.title // ""' "$GITHUB_EVENT_PATH")"
+            URL="$(jq -r '.pull_request.html_url // ""' "$GITHUB_EVENT_PATH")"
+            DESC="$(jq -r '.review.body // ""' "$GITHUB_EVENT_PATH")"
+            AUTHOR="$(jq -r '.review.user.login // ""' "$GITHUB_EVENT_PATH")"
 
             case "$REVIEW_STATE" in
               approved)
@@ -103,10 +101,10 @@ jobs:
               ]')
 
           else
-            TITLE="[Issue] ${{ github.event.issue.title }}"
-            URL="${{ github.event.issue.html_url }}"
-            DESC="$ISSUE_BODY"
-            AUTHOR="${{ github.event.issue.user.login }}"
+            TITLE="[Issue] $(jq -r '.issue.title // ""' "$GITHUB_EVENT_PATH")"
+            URL="$(jq -r '.issue.html_url // ""' "$GITHUB_EVENT_PATH")"
+            DESC="$(jq -r '.issue.body // ""' "$GITHUB_EVENT_PATH")"
+            AUTHOR="$(jq -r '.issue.user.login // ""' "$GITHUB_EVENT_PATH")"
             COLOR=15158332
 
             FIELDS=$(jq -n \
