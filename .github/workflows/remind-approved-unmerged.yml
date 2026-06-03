@@ -16,7 +16,7 @@ jobs:
           DISCORD_USER_MAP: ${{ secrets.DISCORD_USER_MAP }}
         with:
           script: |
-            const STALE_HOURS = 0;
+            const STALE_HOURS = 24;
             const now = new Date();
 
             if (!process.env.DISCORD_WEBHOOK_URL) {
