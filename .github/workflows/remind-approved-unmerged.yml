@@ -19,15 +19,26 @@ jobs:
             const STALE_HOURS = 0;
             const now = new Date();
 
-            // GitHub 유저명 → Discord 유저 ID 매핑 (Secret에서 로드)
-            const DISCORD_MAP = JSON.parse(process.env.DISCORD_USER_MAP);
+            if (!process.env.DISCORD_WEBHOOK_URL) {
+              throw new Error('DISCORD_WEBHOOK_URL secret이 설정되지 않았습니다.');
+            }
+
+            if (!process.env.DISCORD_USER_MAP) {
+              throw new Error('DISCORD_USER_MAP secret이 설정되지 않았습니다.');
+            }
+
+            let DISCORD_MAP;
+            try {
+              DISCORD_MAP = JSON.parse(process.env.DISCORD_USER_MAP);
+            } catch (e) {
+              throw new Error(`DISCORD_USER_MAP JSON 파싱 실패: ${e.message}`);
+            }
 
             // open 상태의 모든 PR 조회
-            const { data: pullRequests } = await github.rest.pulls.list({
+            const pullRequests = await github.paginate(github.rest.pulls.list, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'open',
-              per_page: 25,
             });
 
             const approvedPRs = [];
@@ -37,7 +48,7 @@ jobs:
               if (pr.draft) continue;
 
               // 리뷰 목록 조회
-              const { data: reviews } = await github.rest.pulls.listReviews({
+              const reviews = await github.paginate(github.rest.pulls.listReviews, {
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: pr.number,
