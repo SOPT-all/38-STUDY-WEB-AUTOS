@@ -2,8 +2,8 @@ name: Remind Unreviewed PRs
 
 on:
   schedule:
-    - cron: '0 23 * * *'  # 평일 오전 8시 KST
-  workflow_dispatch:        # 수동 실행도 가능
+    - cron: "0 23 * * *" # 평일 오전 8시 KST
+  workflow_dispatch: # 수동 실행도 가능
 
 jobs:
   remind:
@@ -50,7 +50,7 @@ jobs:
                 repo: context.repo.repo,
                 pull_number: pr.number,
               });
-              
+
               const author = pr.user.login;
 
               // 승인 2명 이상이면 스킵 (컨벤션에 따라 승인 인원 조정 가능)
@@ -80,6 +80,7 @@ jobs:
                 author,
                 elapsedHours: Math.floor(elapsedHours),
                 mentions,
+                nonReviewers,
               });
             }
 
@@ -100,7 +101,7 @@ jobs:
             }));
 
             const payload = {
-              content: stalePRs.map(pr => pr.mentions).join(' '), // 멘션은 embed 밖에 있어야 실제로 울림
+              content: [...new Set(stalePRs.flatMap(pr => pr.nonReviewers).map(member => `<@${DISCORD_MAP[member]}>`))].join(' '),
               embeds: [
                 {
                   title: `🔔 리뷰 대기 중인 PR ${stalePRs.length}개`,
