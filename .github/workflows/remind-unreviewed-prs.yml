@@ -54,13 +54,20 @@ jobs:
 
               const author = pr.user.login;
 
-              // 이미 리뷰한 사람 목록
-              const reviewedUsers = reviews.map(r => r.user.login);
+              // 승인 2명 이상이면 스킵 (컨벤션에 따라 승인 인원 조정 가능)
+              const approvalCount = reviews.filter(r => r.state === 'APPROVED').length;
+              if (approvalCount >= 2) continue;
 
+              // 이미 리뷰한 사람 목록
+              const reviewedUsers = reviews
+                .filter(r => ['APPROVED', 'CHANGES_REQUESTED'].includes(r.state))
+                .map(r => r.user.login);
+              
               // 본인 제외 + 이미 리뷰한 사람 제외 → 아직 리뷰 안 한 사람만 멘션
               const nonReviewers = ALL_MEMBERS.filter(
                 member => member !== author && !reviewedUsers.includes(member)
               );
+
               // 멘션할 사람이 없으면 스킵 (모두 리뷰 완료)
               if (nonReviewers.length === 0) continue;
 
