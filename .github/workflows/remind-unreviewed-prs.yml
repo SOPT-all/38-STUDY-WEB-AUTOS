@@ -26,11 +26,10 @@ jobs:
             const ALL_MEMBERS = Object.keys(DISCORD_MAP);
 
             // open 상태의 모든 PR 조회
-            const { data: pullRequests } = await github.rest.pulls.list({
+            const pullRequests = await github.paginate(github.rest.pulls.list, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'open',
-              per_page: 25,
             });
 
             const stalePRs = [];
@@ -46,12 +45,12 @@ jobs:
               if (elapsedHours < STALE_HOURS) continue;
 
               // 리뷰 목록 조회
-              const { data: reviews } = await github.rest.pulls.listReviews({
+              const reviews = await github.paginate(github.rest.pulls.listReviews, {
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: pr.number,
               });
-
+              
               const author = pr.user.login;
 
               // 승인 2명 이상이면 스킵 (컨벤션에 따라 승인 인원 조정 가능)
