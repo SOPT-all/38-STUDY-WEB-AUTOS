@@ -110,6 +110,7 @@ jobs:
               value: [
                 `👤 작성자: \`${pr.author}\``,
                 `👍 승인자: ${pr.approvers.map(a => `\`${a}\``).join(', ')}`,
+                `⏱ 경과 시간: ${pr.elapsedHours}시간`, 
                 `🔗 [PR 바로가기](${pr.url})`,
               ].join('\n'),
               inline: false,

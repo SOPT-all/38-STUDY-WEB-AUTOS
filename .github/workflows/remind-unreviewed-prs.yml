@@ -107,6 +107,7 @@ jobs:
               name: `📌 ${pr.title}`,
               value: [
                 `👤 작성자: \`${pr.author}\``,
+                `⏱ 경과 시간: ${pr.elapsedHours}시간`,
                 `🔗 [PR 바로가기](${pr.url})`,
                 `👀 리뷰 요청: ${pr.mentions}`,
               ].join('\n'),
