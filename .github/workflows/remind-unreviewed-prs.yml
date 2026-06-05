@@ -2,7 +2,7 @@ name: Remind Unreviewed PRs
 
 on:
   schedule:
-    - cron: "0 23 * * 1-5" # 평일 오전 8시 KST
+    - cron: "0 23 * * 0-4" # 평일 오전 8시 KST
   workflow_dispatch: # 수동 실행도 가능
 
 jobs:
@@ -114,31 +114,47 @@ jobs:
               inline: false,
             }));
 
-            const payload = {
-              content: [...new Set(stalePRs.flatMap(pr => pr.nonReviewers).map(member => `<@${DISCORD_MAP[member]}>`))].join(' '),
-              embeds: [
-                {
-                  title: `🔔 리뷰 대기 중인 PR ${stalePRs.length}개`,
-                  description: `**24시간 이상** 리뷰가 달리지 않은 PR입니다.`,
-                  color: 0xF0A500,
-                  fields,
-                  footer: {
-                    text: `${context.repo.owner}/${context.repo.repo}`,
-                  },
-                  timestamp: now.toISOString(),
-                },
-              ],
-            };
+            const allMentions = [...new Set(stalePRs.flatMap(pr => pr.nonReviewers).map(member => `<@${DISCORD_MAP[member]}>`))].join(' ');
 
-            // Discord Webhook 전송
-            const response = await fetch(process.env.DISCORD_WEBHOOK_URL, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload),
-            });
-
-            if (!response.ok) {
-              throw new Error(`Discord 전송 실패: ${response.status} ${response.statusText}`);
+            const CHUNK_SIZE = 25;
+            const chunks = [];
+            for (let i = 0; i < fields.length; i += CHUNK_SIZE) {
+              chunks.push(fields.slice(i, i + CHUNK_SIZE));
             }
 
-            console.log(`Discord 알림 전송 완료 (${stalePRs.length}개 PR)`);
+            for (let i = 0; i < chunks.length; i++) {
+              const isFirst = i === 0;
+              const total = chunks.length;
+
+              const payload = {
+                content: isFirst ? allMentions : undefined,
+                embeds: [
+                  {
+                    title: total > 1
+                      ? `🔔 리뷰 대기 중인 PR ${stalePRs.length}개 (${i + 1}/${total})`
+                      : `🔔 리뷰 대기 중인 PR ${stalePRs.length}개`,
+                    description: isFirst ? `**24시간 이상** 리뷰가 달리지 않은 PR입니다.` : undefined,
+                    color: 0xF0A500,
+                    fields: chunks[i],
+                    footer: { text: `${context.repo.owner}/${context.repo.repo}` },
+                    timestamp: now.toISOString(),
+                  },
+                ],
+              };
+
+              const response = await fetch(process.env.DISCORD_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+              });
+
+              if (!response.ok) {
+                throw new Error(`Discord 전송 실패 (${i + 1}번째): ${response.status} ${response.statusText}`);
+              }
+
+              if (i < chunks.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              }
+            }
+
+            console.log(`Discord 알림 전송 완료 (${stalePRs.length}개 PR, ${chunks.length}번 전송)`);

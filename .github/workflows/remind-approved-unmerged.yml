@@ -2,7 +2,7 @@ name: Remind Approved But Unmerged PRs
 
 on:
   schedule:
-    - cron: "0 23 * * 1-5" # 평일 오전 8시
+    - cron: "0 23 * * 0-4" # 평일 오전 8시
   workflow_dispatch: # 수동 실행도 가능
 
 jobs:
@@ -116,31 +116,49 @@ jobs:
               inline: false,
             }));
 
-            const payload = {
-              content: approvedPRs.map(pr => pr.authorMention).join(' '), // 작성자 멘션
-              embeds: [
-                {
-                  title: `🚀 머지 대기 중인 PR ${approvedPRs.length}개`,
-                  description: `승인받은 지 24시간 이상 지났지만 아직 머지되지 않은 PR입니다.`,
-                  color: 0xEB459E,
-                  fields,
-                  footer: {
-                    text: `${context.repo.owner}/${context.repo.repo}`,
-                  },
-                  timestamp: now.toISOString(),
-                },
-              ],
-            };
-
-            // Discord Webhook 전송
-            const response = await fetch(process.env.DISCORD_WEBHOOK_URL, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload),
-            });
-
-            if (!response.ok) {
-              throw new Error(`Discord 전송 실패: ${response.status} ${response.statusText}`);
+            const CHUNK_SIZE = 25;
+            const chunks = [];
+            for (let i = 0; i < fields.length; i += CHUNK_SIZE) {
+              chunks.push(fields.slice(i, i + CHUNK_SIZE));
             }
 
-            console.log(`Discord 알림 전송 완료 (${approvedPRs.length}개 PR)`);
+            for (let i = 0; i < chunks.length; i++) {
+              const isFirst = i === 0;
+              const total = chunks.length;
+
+              const payload = {
+                // 멘션은 첫 번째 메시지에만 포함
+                content: isFirst ? [...new Set(approvedPRs.map(pr => pr.authorMention))].join(' ') : undefined,
+                embeds: [
+                  {
+                    title: total > 1
+                      ? `🚀 머지 대기 중인 PR ${approvedPRs.length}개 (${i + 1}/${total})`
+                      : `🚀 머지 대기 중인 PR ${approvedPRs.length}개`,
+                    description: isFirst
+                      ? `승인받은 지 24시간 이상 지났지만 아직 머지되지 않은 PR입니다.`
+                      : undefined,
+                    color: 0xEB459E,
+                    fields: chunks[i],
+                    footer: { text: `${context.repo.owner}/${context.repo.repo}` },
+                    timestamp: now.toISOString(),
+                  },
+                ],
+              };
+
+              const response = await fetch(process.env.DISCORD_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+              });
+
+              if (!response.ok) {
+                throw new Error(`Discord 전송 실패 (${i + 1}번째): ${response.status} ${response.statusText}`);
+              }
+
+              // Discord rate limit 방지 (연속 전송 시 필요)
+              if (i < chunks.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              }
+            }
+
+            console.log(`Discord 알림 전송 완료 (${approvedPRs.length}개 PR, ${chunks.length}번 전송)`);
