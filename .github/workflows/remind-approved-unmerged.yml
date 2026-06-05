@@ -2,8 +2,8 @@ name: Remind Approved But Unmerged PRs
 
 on:
   schedule:
-    - cron: "0 23 * * 0-4" # 평일 오전 8시
-  workflow_dispatch: # 수동 실행도 가능
+    - cron: "0 23 * * 0-4" 
+  workflow_dispatch: 
 
 jobs:
   remind:
@@ -34,7 +34,6 @@ jobs:
               throw new Error(`DISCORD_USER_MAP JSON 파싱 실패: ${e.message}`);
             }
 
-            // open 상태의 모든 PR 조회
             const pullRequests = await github.paginate(github.rest.pulls.list, {
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -44,17 +43,14 @@ jobs:
             const approvedPRs = [];
 
             for (const pr of pullRequests) {
-              // Draft PR 제외
               if (pr.draft) continue;
 
-              // 리뷰 목록 조회
               const reviews = await github.paginate(github.rest.pulls.listReviews, {
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: pr.number,
               });
 
-              // 리뷰어별 최신 리뷰만 추출
               const latestReviewByUser = {};
               for (const review of reviews) {
                 latestReviewByUser[review.user.login] = review;
@@ -65,13 +61,11 @@ jobs:
               );
               if (!hasApproval) continue;
 
-              // CHANGES_REQUESTED 남아있으면 제외
               const hasChangesRequested = Object.values(latestReviewByUser).some(
                 r => r.state === 'CHANGES_REQUESTED'
               );
               if (hasChangesRequested) continue;
 
-              // 마지막 승인 시각 기준 경과 시간
               const approvedReviews = Object.values(latestReviewByUser).filter(
                 r => r.state === 'APPROVED'
               );
@@ -84,7 +78,6 @@ jobs:
               const author = pr.user.login;
               const approvers = approvedReviews.map(r => r.user.login);
 
-              // PR 작성자 멘션 (본인 PR이니까 작성자만)
               const authorMention = DISCORD_MAP[author]
                 ? `<@${DISCORD_MAP[author]}>`
                 : `\`${author}\``;
@@ -104,7 +97,6 @@ jobs:
               return;
             }
 
-            // Discord Embed 메시지 구성
             const fields = approvedPRs.map(pr => ({
               name: `✅ ${pr.title}`,
               value: [
@@ -127,7 +119,6 @@ jobs:
               const total = chunks.length;
 
               const payload = {
-                // 멘션은 첫 번째 메시지에만 포함
                 content: isFirst ? [...new Set(approvedPRs.map(pr => pr.authorMention))].join(' ') : undefined,
                 embeds: [
                   {
@@ -155,7 +146,6 @@ jobs:
                 throw new Error(`Discord 전송 실패 (${i + 1}번째): ${response.status} ${response.statusText}`);
               }
 
-              // Discord rate limit 방지 (연속 전송 시 필요)
               if (i < chunks.length - 1) {
                 await new Promise(resolve => setTimeout(resolve, 1000));
               }
