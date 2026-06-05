@@ -1,0 +1,154 @@
+name: Remind Approved But Unmerged PRs
+
+on:
+  schedule:
+    - cron: "0 23 * * 0-4" 
+  workflow_dispatch: 
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find approved but unmerged PRs and notify Discord
+        uses: actions/github-script@v7
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_USER_MAP: ${{ secrets.DISCORD_USER_MAP }}
+        with:
+          script: |
+            const STALE_HOURS = 24;
+            const now = new Date();
+
+            if (!process.env.DISCORD_WEBHOOK_URL) {
+              throw new Error('DISCORD_WEBHOOK_URL secret이 설정되지 않았습니다.');
+            }
+
+            if (!process.env.DISCORD_USER_MAP) {
+              throw new Error('DISCORD_USER_MAP secret이 설정되지 않았습니다.');
+            }
+
+            let DISCORD_MAP;
+            try {
+              DISCORD_MAP = JSON.parse(process.env.DISCORD_USER_MAP);
+            } catch (e) {
+              throw new Error(`DISCORD_USER_MAP JSON 파싱 실패: ${e.message}`);
+            }
+
+            const pullRequests = await github.paginate(github.rest.pulls.list, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+            });
+
+            const approvedPRs = [];
+
+            for (const pr of pullRequests) {
+              if (pr.draft) continue;
+
+              const reviews = await github.paginate(github.rest.pulls.listReviews, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+              });
+
+              const latestReviewByUser = {};
+              for (const review of reviews) {
+                latestReviewByUser[review.user.login] = review;
+              }
+
+              const hasApproval = Object.values(latestReviewByUser).some(
+                r => r.state === 'APPROVED'
+              );
+              if (!hasApproval) continue;
+
+              const hasChangesRequested = Object.values(latestReviewByUser).some(
+                r => r.state === 'CHANGES_REQUESTED'
+              );
+              if (hasChangesRequested) continue;
+
+              const approvedReviews = Object.values(latestReviewByUser).filter(
+                r => r.state === 'APPROVED'
+              );
+              const lastApprovedAt = new Date(
+                Math.max(...approvedReviews.map(r => new Date(r.submitted_at)))
+              );
+              const elapsedHours = (now - lastApprovedAt) / (1000 * 60 * 60);
+              if (elapsedHours < STALE_HOURS) continue;
+
+              const author = pr.user.login;
+              const approvers = approvedReviews.map(r => r.user.login);
+
+              const authorMention = DISCORD_MAP[author]
+                ? `<@${DISCORD_MAP[author]}>`
+                : `\`${author}\``;
+
+              approvedPRs.push({
+                title: pr.title,
+                url: pr.html_url,
+                author,
+                authorMention,
+                approvers,
+                elapsedHours: Math.floor(elapsedHours),
+              });
+            }
+
+            if (approvedPRs.length === 0) {
+              console.log('머지 대기 중인 PR이 없습니다.');
+              return;
+            }
+
+            const fields = approvedPRs.map(pr => ({
+              name: `✅ ${pr.title}`,
+              value: [
+                `👤 작성자: \`${pr.author}\``,
+                `👍 승인자: ${pr.approvers.map(a => `\`${a}\``).join(', ')}`,
+                `⏱ 경과 시간: ${pr.elapsedHours}시간`, 
+                `🔗 [PR 바로가기](${pr.url})`,
+              ].join('\n'),
+              inline: false,
+            }));
+
+            const CHUNK_SIZE = 25;
+            const chunks = [];
+            for (let i = 0; i < fields.length; i += CHUNK_SIZE) {
+              chunks.push(fields.slice(i, i + CHUNK_SIZE));
+            }
+
+            for (let i = 0; i < chunks.length; i++) {
+              const isFirst = i === 0;
+              const total = chunks.length;
+
+              const payload = {
+                content: isFirst ? [...new Set(approvedPRs.map(pr => pr.authorMention))].join(' ') : undefined,
+                embeds: [
+                  {
+                    title: total > 1
+                      ? `🚀 머지 대기 중인 PR ${approvedPRs.length}개 (${i + 1}/${total})`
+                      : `🚀 머지 대기 중인 PR ${approvedPRs.length}개`,
+                    description: isFirst
+                      ? `승인받은 지 24시간 이상 지났지만 아직 머지되지 않은 PR입니다.`
+                      : undefined,
+                    color: 0xEB459E,
+                    fields: chunks[i],
+                    footer: { text: `${context.repo.owner}/${context.repo.repo}` },
+                    timestamp: now.toISOString(),
+                  },
+                ],
+              };
+
+              const response = await fetch(process.env.DISCORD_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+              });
+
+              if (!response.ok) {
+                throw new Error(`Discord 전송 실패 (${i + 1}번째): ${response.status} ${response.statusText}`);
+              }
+
+              if (i < chunks.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              }
+            }
+
+            console.log(`Discord 알림 전송 완료 (${approvedPRs.length}개 PR, ${chunks.length}번 전송)`);
