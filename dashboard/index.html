@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitHub 협업 분석 대시보드</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div class="header-inner">
+        <div class="logo">GitHub 협업 분석</div>
+        <div class="header-right">
+          <span id="rate-limit"></span>
+          <span id="last-updated"></span>
+          <button id="refresh-btn" class="btn btn-ghost btn-sm hidden">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M23 4v6h-6M1 20v-6h6" />
+              <path
+                d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
+              />
+            </svg>
+            새로고침
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="main">
+      <!-- ── 설정 패널 ──────────────────────────────────── -->
+      <div id="config-panel" class="config-wrap">
+        <div class="config-card">
+          <h2>GitHub 협업 분석</h2>
+          <p class="repo-fixed">📁 SOPT-all / 38-STUDY-WEB-AUTOS</p>
+          <form id="config-form" class="form">
+            <div class="form-group">
+              <label for="token">
+                GitHub Token <span class="opt">(선택 · 속도 제한 완화)</span>
+              </label>
+              <input type="password" id="token" placeholder="ghp_..." />
+            </div>
+
+            <div class="form-group">
+              <label for="pr-limit">분석할 PR 수</label>
+              <select id="pr-limit">
+                <option value="30">최근 30개 (Token 불필요)</option>
+                <option value="50" selected>최근 50개 (권장)</option>
+                <option value="100">최근 100개 (Token 필요)</option>
+                <option value="200">최근 200개 (Token 필요)</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg">
+              분석 시작
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- ── 로딩 ──────────────────────────────────────── -->
+      <div id="loading" class="loading-wrap hidden">
+        <div class="loading-inner">
+          <div class="spinner"></div>
+          <p id="loading-text">데이터를 불러오는 중...</p>
+          <div class="progress-bar">
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
+          <p id="progress-label"></p>
+        </div>
+      </div>
+
+      <!-- ── 에러 ──────────────────────────────────────── -->
+      <div id="error-state" class="error-wrap hidden">
+        <div class="error-inner">
+          <span class="error-icon">⚠</span>
+          <h3>오류가 발생했습니다</h3>
+          <p id="error-msg"></p>
+          <button id="back-btn" class="btn btn-secondary">← 다시 설정</button>
+        </div>
+      </div>
+
+      <!-- ── 대시보드 ───────────────────────────────────── -->
+      <div id="dashboard" class="dashboard hidden">
+        <!-- 저장소 정보 바 -->
+        <div class="repo-bar">
+          <div class="repo-left">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M3 3h6l2 2h10v14H3V3z" />
+            </svg>
+            <a id="repo-link" href="#" target="_blank"></a>
+          </div>
+          <div class="repo-right">
+            <span id="repo-stars"></span>
+            <span id="repo-forks"></span>
+          </div>
+        </div>
+
+        <!-- 요약 카드 -->
+        <div class="summary-grid">
+          <div class="card stat-card">
+            <div class="stat-label">전체 PR</div>
+            <div class="stat-value" id="stat-total">-</div>
+            <div class="stat-sub">분석 범위</div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-label">오픈 PR</div>
+            <div class="stat-value c-open" id="stat-open">-</div>
+            <div class="stat-sub" id="stat-open-sub"></div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-label">머지된 PR</div>
+            <div class="stat-value c-merged" id="stat-merged">-</div>
+            <div class="stat-sub" id="stat-merged-sub"></div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-label">평균 첫 리뷰까지</div>
+            <div class="stat-value" id="stat-avg-review">-</div>
+            <div class="stat-sub">오픈 → 첫 리뷰</div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-label">평균 머지까지</div>
+            <div class="stat-value" id="stat-avg-merge">-</div>
+            <div class="stat-sub">오픈 → 머지</div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-label">총 리뷰 수</div>
+            <div class="stat-value" id="stat-reviews">-</div>
+            <div class="stat-sub" id="stat-reviews-sub"></div>
+          </div>
+        </div>
+
+        <!-- 차트 그리드 -->
+        <div class="charts-grid">
+          <div class="card">
+            <div class="card-header">
+              <h3>PR 상태 분포</h3>
+              <span class="badge-label">전체</span>
+            </div>
+            <div class="chart-body"><canvas id="chart-status"></canvas></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>멤버별 리뷰 참여도</h3>
+              <span class="badge-label">리뷰한 PR 수</span>
+            </div>
+            <div class="chart-body"><canvas id="chart-reviews"></canvas></div>
+          </div>
+
+          <div class="card chart-wide">
+            <div class="card-header">
+              <h3>멤버별 PR 활동 비교</h3>
+              <span class="badge-label">작성 vs 리뷰</span>
+            </div>
+            <div class="chart-body"><canvas id="chart-activity"></canvas></div>
+          </div>
+
+          <div class="card chart-wide">
+            <div class="card-header">
+              <h3>주별 머지된 PR 추이</h3>
+              <span class="badge-label">최근 12주</span>
+            </div>
+            <div class="chart-body"><canvas id="chart-weekly"></canvas></div>
+          </div>
+        </div>
+
+        <!-- PR 테이블 -->
+        <div class="card">
+          <div class="card-header">
+            <h3>PR 목록</h3>
+            <div class="filter-row">
+              <button class="filter-btn active" data-filter="all">전체</button>
+              <button class="filter-btn" data-filter="open">오픈</button>
+              <button class="filter-btn" data-filter="merged">머지됨</button>
+              <button class="filter-btn" data-filter="closed">닫힘</button>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="pr-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>제목</th>
+                  <th>작성자</th>
+                  <th>상태</th>
+                  <th>경과 시간</th>
+                  <th>리뷰 수</th>
+                  <th>머지까지</th>
+                </tr>
+              </thead>
+              <tbody id="pr-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- /dashboard -->
+    </main>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
